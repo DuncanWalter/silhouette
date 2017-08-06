@@ -1,9 +1,6 @@
 var webpack = require('webpack');
 var extend = require('./webpack.base');
 var shell = require('shelljs');
-// const Mem = require('memory-fs');
-// var eval = require('eval');
-// let mem = new Mem();
 
 ////////////////////////////////////////////////////////////////////////
 //====================================================================//
@@ -32,13 +29,20 @@ let compiler = webpack(config);
 
 // compiler.outputFileSystem = mem;
 
+var lcr = 0;
+
 compiler.watch({
     aggregateTimeout: 3000, 
     poll: 3000,
 }, (err, stat) =>{
     console.log(err !== null ? err : '> running bundle...');
+
+    now = (new Date()).getUTCMilliseconds();
+    cov = now - lcr > 60000 ? '--cov ' : '';
+    lcr = now - lcr > 60000 ? now : lcr;
+
     try {
-        shell.exec(__dirname + '/../node_modules/.bin/tap ' + __dirname + '/../dist/index.bundle.js');
+        shell.exec(__dirname + '/../node_modules/.bin/tap ' + cov + __dirname + '/../dist/index.bundle.js');
     } catch(err){
         console.error(err);
     }

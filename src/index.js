@@ -1,14 +1,14 @@
-import { compose, each, where, inject, remove, lens } from '~/optics/optics.js'
+import { compose, each, where, inject, remove, optic, chain, view } from '~/optics/optics.js'
 import { createStore } from 'redux'
 
-// TODO if(module.hot){module.hot.accept();}
+// TODO if(module.hot){module.hot.accept();} TODO store state to a global for recovery
 
 
 let store;
 
 // effective private class properties
-const __path__ = new Symbol('path');
-const __reducers__ = new Symbol('reducers');
+const __path__ = Symbol('path');
+const __reducers__ = Symbol('reducers');
 
 class Silhouette {
 
@@ -21,23 +21,26 @@ class Silhouette {
         store.dispatch({ 
             type: '__INJECT__', 
             val: val,
-            path: this[__path__].concat(path) 
+            path: this[__path__].concat(path), 
         });
     }
 
     remove(...path){
         store.dispatch({ 
             type: '__REMOVE__',
-            path: this[__path__].concat(path) 
+            path: this[__path__].concat(path),
         });
     }
 
-    dispatch(type, payload){
-        if(payload === undefined){
-            store.dispatch(type);
+    dispatch(type, payload, globally = false){
+        if(globally){
+            store.dispatch(Object.assign({ type: type }, payload));
         } else {
-            payload.type = type;
-            store.dispatch(payload);
+            store.dispatch({ 
+                type: '__DELEGATE__',
+                path: this[__path__].concat(path),
+                payload: Object.assign({ type: type }, payload),
+            });
         }
     }
 
@@ -45,21 +48,61 @@ class Silhouette {
         this[__reducers__].push(reducer);
     }
 
+    listen(){
+
+    }
+
 }
+
+// contort is a knarly optical function which reduces over 
+// a state while continuously updating its silhouette and 
+// emitting to relevant streams. 
+function contort({state, sil, action}){
+
+    let transitional = sil[__reducers__].reduce((a, r) => {
+        return r(a, action);
+    }, state);
+
+    if(transitional !== state){
+        // TODO will Object keys play nice with arrays?
+        Object.keys(sil).forEach(key => {
+            if(!key in transitional){
+                delete sil[key]; // TODO terminate streams
+            }
+        });
+
+        Object.keys(transitional).forEach(key => {
+            if(!key in sil){
+                sil[key] = new Silhouette(...sil[__path__], key);
+            } else if(key in Silhouette.prototype){
+                throw new Error('Property names inject, remove, dispatch, and extend are reserved and may not be used.');
+            }
+        });
+    }
+
+    let itr = Object.keys(transitional)[Symbol.iterator]();
+
+    let fun = frag => {return{ state: frag, action: action, sil: itr.next().value }};
+
+    let final = view(compose(each(), fun, contort), transitional);
+
+    if(final != state){
+        // TODO trigger observable
+    }
+
+    return final;
+}
+
+
+
+
+
+
+
+
 
 // global root silhouette
 const sil = new Silhouette();
-
-
-
-var reduceState = [
-    each(), // select each member
-    lens(), // 
-    where(o => (o instanceof Object || o instanceof Array)), 
-    reduceState,
-];
-reduceState = compose(...reduceState);
-
 
 
 
@@ -69,12 +112,20 @@ function globalReducer(state = {}, action){
         case '__INJECT__':
             let { val, path } = action;
             let injector = inject(path.pop(), val);
-            return compose(...path, injector).exec(state);
+            return view(compose(...path, injector), state);
 
         case '__REMOVE__':
-            let path = action.path;
+            let { path } = action;
             let remover = remove(path.pop());
-            return compose(...path, remover).exec(state);
+            let remove = compose(...path, remover);
+            // view(remove.exec(sil); // TODO mutable though TODO kill streams
+            return view(remove, state);
+
+        case '__DELEGATE__':
+            let { path, payload } = action;
+            // TODO 
+            throw new Error('NYI');
+            return 'TODO' // remove.exec(state); 
 
         default:
 
