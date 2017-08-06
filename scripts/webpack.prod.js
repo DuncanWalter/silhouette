@@ -1,5 +1,6 @@
 const webpack = require('webpack');
 const extend = require('./webpack.base');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 
 const config = extend({
     plugins: [
@@ -7,23 +8,23 @@ const config = extend({
             minimize: true,
             debug: false,
         }),
-        new webpack.optimize.UglifyJsPlugin({
-            beautify: false,
-            mangle: {
-                screw_ie8: true,
-                keep_fnames: true,
+        new UglifyJsPlugin({
+            parallel: true,
+            uglifyOptions: {
+                ecma: 8,
+                ie8: false,
+                warnings: true,
+                mangle: true,
+                compress: true,
+                comments: false,
             },
-            compress: {
-                screw_ie8: true,
-            },
-            comments: false,
         }),
     ],
 });
 
 console.log("> Starting production build...");
 
-webpack(config, ()=>{
+webpack(config, (err, stat)=>{
     console.log("> Completed production build!");
 });
 

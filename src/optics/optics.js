@@ -1,7 +1,5 @@
-// TODO spit optic call into traveral, optic (with catch), and _trusted
-// TODO Symbol(exec) & view
 
-
+// TODO make __exec__ truly private 
 const __exec__ = Symbol('exec');
 
 // view is used to activate optics
@@ -10,7 +8,7 @@ export let view = (optic, target) => optic[__exec__](target);
 function trusted(operation){
     return {
         [__exec__](target, itr){
-            if(target === undefined){ return undefined; }
+            // if(target === undefined){ return undefined; }
             let { done, value } = itr ? itr.next() : { done: true };
             if(done){
                 return operation(target, id => id);
@@ -27,7 +25,7 @@ function trusted(operation){
 export function optic(operation){
     return {
         [__exec__](target, itr){
-            if(target === undefined){ return undefined; }
+            // if(target === undefined){ return undefined; }
             let { done, value } = itr ? itr.next() : { done: true };
             if(done){
                 return operation(target, id => id);
@@ -83,7 +81,7 @@ export function compose(...optics){
 
     return {
         [__exec__](o, i){
-            if(o === undefined){ return undefined; }
+            // if(o === undefined){ return undefined; }
             return lst[0][__exec__](o, (function*(){
                 yield* itr;
                 if(i !== undefined){ yield* i; }
@@ -164,7 +162,7 @@ export let where = predicate => {
 export function traversal(operation){
     return {
         [__exec__](target, itr){
-            if(target === undefined){ return undefined; }
+            // if(target === undefined){ return undefined; }
             let { done, value } = itr ? itr.next() : { done: true };
             if(done){
                 return operation(target, id => id);

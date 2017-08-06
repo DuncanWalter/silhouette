@@ -13,8 +13,7 @@ let config = extend({
     entry: './src/test.js',
     output: {
         path: __dirname + './../dist',
-        filename: 'dev.bundle.js',
-        library: package.name,
+        filename: 'test.bundle.js',
         libraryTarget: 'umd',
     },
     externals: Object.keys(package.dependencies).reduce((a, d) => {
@@ -23,7 +22,16 @@ let config = extend({
         a[d] = d;
         return a;
     }, { tap: 'tap' }),
-    devtool: 'cheap-eval-source-map',
+    plugins: [
+        new webpack.LoaderOptionsPlugin({
+            minimize: true,
+            debug: true,
+        }),
+        new webpack.optimize.UglifyJsPlugin({
+            beautify: true,
+            comments: false,
+        }),
+    ]
 });
 
 ////////////////////////////////////////////////////////////////////////
@@ -32,15 +40,10 @@ let config = extend({
 //====================================================================//
 ////////////////////////////////////////////////////////////////////////
 
-let compiler = webpack(config);
-
-compiler.watch({
-    aggregateTimeout: 500, 
-    poll: 3000,
-}, (err, stat) =>{
+webpack(config, (err, stat) =>{
     console.log(err !== null ? err : '> running bundle...');
     try {
-        shell.exec('node ./dist/dev.bundle.js');
+        shell.exec('npm run test-rig');
     } catch(err){
         console.error(err);
     }

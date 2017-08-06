@@ -1,20 +1,21 @@
-import { compose, each, where, inject, remove, optic, chain, view } from '~/optics/optics.js'
+import { compose, each, where, inject, remove, optic, chain, view } from '~/src/optics/optics.js'
 import { createStore } from 'redux'
 
 // TODO if(module.hot){module.hot.accept();} TODO store state to a global for recovery
 
-
-let store;
+let store, sil;
 
 // effective private class properties
 const __path__ = Symbol('path');
 const __reducers__ = Symbol('reducers');
+const __stream__ = Symbol('stream');
 
 class Silhouette {
 
     constructor(...path){
         this[__path__] = path;
         this[__reducers__] = [];
+        this[__stream__] = {};
     }
 
     inject(val, ...path){
@@ -56,8 +57,9 @@ class Silhouette {
 
 // contort is a knarly optical function which reduces over 
 // a state while continuously updating its silhouette and 
-// emitting to relevant streams. 
-function contort({state, sil, action}){
+// emitting to relevant streams. This function is the main
+// motivation for the creation of the entire optics module.
+function contort({ state, sil, action }){
 
     let transitional = sil[__reducers__].reduce((a, r) => {
         return r(a, action);
@@ -93,37 +95,72 @@ function contort({state, sil, action}){
     return final;
 }
 
+// an optic wrapping the standard pluck optic to
+// activate silhouette streams on change detection
+function traverse(member){
+    return optic(({ state, sil, action }, next) => {
+        return view(compose(member, (fragment) => {
+            if(!sil[member]){ sil[member] = new Silhouette(...sil[__path__], member); }
+            let ret = next({ state: fragment || {}, sil: sil[member], action });
+            if(ret !== state){
+                // TODO activate the sil stream
+            }
+            return ret;
+        }), state)
+    });
+}
 
+function repsert(val){
+    return optic(({state, sil}) => {
+        if(val !== state){
+            // TODO trip streams
+        }
+        Object.keys(val).forEach(key => {
+            if(!sil || !sil.hasOwnProperty(key)){
+                sil[key] = new Silhouette(...sil[__path__], key);
+                view(repsert(val[key]), { state: val[key], sil: sil[key] });
+            }
+        });
+        return val;
+    });
+}
 
+function erase(member){
+    return optic(({state, sil}) => {
+        let _state = state;
+        if(state.hasOwnProperty(member)){
+            _state = Object.keys(state).reduce((a, k) => {
+                a[k] = state[k];
+                return a;
+            }, {});
+            delete _state[member];
 
+            // TODO end streams
 
-
-
-
-
-// global root silhouette
-const sil = new Silhouette();
-
-
-
+            delete sil[member];
+        }
+        return _state;
+    });
+}
 
 function globalReducer(state = {}, action){
+    let path, payload, val;
     switch(action.type){
-        case '__INJECT__':
-            let { val, path } = action;
-            let injector = inject(path.pop(), val);
-            return view(compose(...path, injector), state);
+        case '__INJECT__': // TODO make non-colliding symbols
+            ({ val, path } = action);
+            let inject = compose(...path.map(traverse), repsert(val));
+            return view(inject, { state, sil });
 
         case '__REMOVE__':
-            let { path } = action;
-            let remover = remove(path.pop());
-            let remove = compose(...path, remover);
-            // view(remove.exec(sil); // TODO mutable though TODO kill streams
-            return view(remove, state);
+            ({ path } = action);
+            let eraser = erase(path.pop()); // TODO custom optic TODO kill streams
+            let remove = compose(...path.map(traverse), eraser);
+            return view(remove, { state, sil });
 
         case '__DELEGATE__':
-            let { path, payload } = action;
+            ({ path, payload } = action);
             // TODO 
+            compose(...path.map(traverse), contort);
             throw new Error('NYI');
             return 'TODO' // remove.exec(state); 
 
@@ -134,4 +171,6 @@ function globalReducer(state = {}, action){
 
 }
 
-store = createStore(globalReducer, );
+// global root silhouette
+export default sil = new Silhouette();
+store = createStore(globalReducer);
