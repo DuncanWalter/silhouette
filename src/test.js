@@ -2,7 +2,7 @@ import tap from 'tap'
 import optics from './optics/test'
 import sil from './index'
 
-tap.test('silhouette inject & remove tests', t => {
+tap.test('silhouette tests', t => {
     t.true(sil);
     sil.inject({ a: 3, b: { c: 1, d: 4 }});
     t.true(sil.a);
