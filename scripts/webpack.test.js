@@ -40,11 +40,12 @@ let config = extend({
 //====================================================================//
 ////////////////////////////////////////////////////////////////////////
 
-webpack(config, (err, stat) =>{
-    console.log(err !== null ? err : '> running bundle...');
-    try {
-        shell.exec('npm run test-rig');
-    } catch(err){
-        console.error(err);
-    }
-});
+new Promise((resolve, reject) => {
+    webpack(config, (err, stat) => {
+        if(!err){
+            resolve(true);
+        } else {
+            reject(err);
+        }
+    });
+}).then(()=>console.log('> test build completed'), ()=>console.log('> test build failed'));

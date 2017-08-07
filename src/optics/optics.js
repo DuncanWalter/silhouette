@@ -204,8 +204,8 @@ export let each = () => {
                 return e === a[i] ? a : r;
             }, target);
         } else {
-            throw new Error("The 'each' optic expects targets of the type Object, Array, or undefined");
             return target;
+            // throw new Error("The 'each' optic expects targets of the type Object, Array, or undefined");
         }
     });
 }

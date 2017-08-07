@@ -4,8 +4,7 @@
   "description": "Atomic state management inspired by redux, observables, and optics.",
   "main": "dist/index.bundle.js",
   "scripts": {
-    "test": "node scripts/webpack.test.js",
-    "test-rig": "node_modules/.bin/tap --cov ./dist/test.bundle.js",
+    "test": "node scripts/webpack.test.js & node_modules\\.bin\\tap --cov dist/test.bundle.js",
     "dev": "node scripts/webpack.dev.js",
     "prod": "node scripts/webpack.prod.js"
   },

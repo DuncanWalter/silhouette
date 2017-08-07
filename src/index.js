@@ -5,6 +5,11 @@ import { createStore } from 'redux'
 
 let store, sil;
 
+const __INJECT__ = Symbol('__INJECT__');
+const __REMOVE__ = Symbol('__REMOVE__');
+const __DELEGATE__ = Symbol('__DELEGATE__');
+
+
 // effective private class properties
 const __path__ = Symbol('path');
 const __reducers__ = Symbol('reducers');
@@ -20,7 +25,7 @@ class Silhouette {
 
     inject(val, ...path){
         store.dispatch({ 
-            type: '__INJECT__', 
+            type: __INJECT__, 
             val: val,
             path: this[__path__].concat(path), 
         });
@@ -28,21 +33,17 @@ class Silhouette {
 
     remove(...path){
         store.dispatch({ 
-            type: '__REMOVE__',
+            type: __REMOVE__,
             path: this[__path__].concat(path),
         });
     }
 
     dispatch(type, payload, globally = false){
-        if(globally){
-            store.dispatch(Object.assign({ type: type }, payload));
-        } else {
-            store.dispatch({ 
-                type: '__DELEGATE__',
-                path: this[__path__].concat(path),
-                payload: Object.assign({ type: type }, payload),
-            });
-        }
+        store.dispatch({ 
+            type: __DELEGATE__,
+            path: globally ? [] : this[__path__],
+            payload: Object.assign({ type }, payload),
+        });
     }
 
     extend(reducer){
@@ -65,6 +66,10 @@ function contort({ state, sil, action }){
         return r(a, action);
     }, state);
 
+    if(transitional === undefined || transitional === null){
+        throw new Error('Reducers should not return undefined or null. Perhaps there was a missed return statement?');
+    }
+
     if(transitional !== state){
         // TODO will Object keys play nice with arrays?
         Object.keys(sil).forEach(key => {
@@ -84,7 +89,7 @@ function contort({ state, sil, action }){
 
     let itr = Object.keys(transitional)[Symbol.iterator]();
 
-    let fun = frag => {return{ state: frag, action: action, sil: itr.next().value }};
+    let fun = frag => {return{ state: frag, action: action, sil: sil[itr.next().value] }};
 
     let final = view(compose(each(), fun, contort), transitional);
 
@@ -146,27 +151,30 @@ function erase(member){
 function globalReducer(state = {}, action){
     let path, payload, val;
     switch(action.type){
-        case '__INJECT__': // TODO make non-colliding symbols
+
+        case __INJECT__:
             ({ val, path } = action);
             let inject = compose(...path.map(traverse), repsert(val));
             return view(inject, { state, sil });
 
-        case '__REMOVE__':
+        case __REMOVE__:
             ({ path } = action);
-            let eraser = erase(path.pop()); // TODO custom optic TODO kill streams
+            let eraser = erase(path.pop());
             let remove = compose(...path.map(traverse), eraser);
             return view(remove, { state, sil });
 
-        case '__DELEGATE__':
+        case __DELEGATE__:
             ({ path, payload } = action);
-            // TODO 
-            compose(...path.map(traverse), contort);
-            throw new Error('NYI');
-            return 'TODO' // remove.exec(state); 
+            let dispatch = compose(...path.map(traverse), contort);
+            return view(dispatch, { state, sil, action });
+
+        case '@@redux/INIT':
+            return state;
 
         default:
+            throw new Error('silhouette is meant to abstract all interaction with the data store; do not interact with it directly');
+            return undefined;
 
-            break;
     }
 
 }
