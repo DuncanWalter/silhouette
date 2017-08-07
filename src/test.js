@@ -30,3 +30,5 @@ tap.test('silhouette tests', t => {
     t.equal(incra, 1);
     t.end();
 });
+
+tap.end();

@@ -6,11 +6,13 @@ notifications:
   email: false
 node_js:
   - '7'
-  - '6'
 before_script:
   - npm prune
+script:
+  - npm test
+  - npm run prod
 after_success:
-  - npm run semantic-release
+  - npm version minor 
 branches:
-  except:
-    - /^v\d+\.\d+\.\d+$/
+  only:
+    - master

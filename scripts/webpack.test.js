@@ -48,4 +48,4 @@ new Promise((resolve, reject) => {
             reject(err);
         }
     });
-}).then(()=>console.log('> test build completed'), ()=>console.log('> test build failed'));
+});
