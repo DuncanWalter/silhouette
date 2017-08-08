@@ -2,43 +2,49 @@
 // TODO make __exec__ truly private 
 const __exec__ = Symbol('exec');
 
+class Optic {
+    constructor(fun){
+        this[__exec__] = fun;
+    }
+}
+
 // view is used to activate optics
-export let view = (optic, target) => optic[__exec__](target);
+export let view = (optic, target) => {
+    if(optic instanceof Optic){
+        return optic[__exec__](target);
+    } else {
+        return compose(optic)[__exec__](target);
+    }
+}
 
 function trusted(operation){
-    return {
-        [__exec__](target, itr){
-            // if(target === undefined){ return undefined; }
-            let { done, value } = itr ? itr.next() : { done: true };
-            if(done){
-                return operation(target, id => id);
-            } else {
-                return operation(target, target => value[__exec__](target, itr));
-            }
+    return new Optic((target, itr) => {
+        let { done, value } = itr ? itr.next() : { done: true };
+        if(done){
+            return operation(target, id => id);
+        } else {
+            return operation(target, target => value[__exec__](target, itr));
         }
-    }
+    });
 }
 
 // Next :: Object? -> Object?
 // Optic :: { exec :: (Object?, Iterator<Optic>) -> Object? }
 // optic :: ( ( Object, Next ) -> void, false ) ->  Optic
 export function optic(operation){
-    return {
-        [__exec__](target, itr){
-            // if(target === undefined){ return undefined; }
-            let { done, value } = itr ? itr.next() : { done: true };
-            if(done){
-                return operation(target, id => id);
-            } else {
-                let safe = true;
-                let next = target => {
-                    if(safe){ safe = false } else { throw `The 'next' function was called twice; for library performance, optics calling 'next' more than once must be created with 'traversal' in place of 'optic'` }
-                    return value[__exec__](target, itr);
-                }
-                return operation(target, next);
+    return new Optic((target, itr) => {
+        let { done, value } = itr ? itr.next() : { done: true };
+        if(done){
+            return operation(target, id => id);
+        } else {
+            let safe = true;
+            let next = target => {
+                if(safe){ safe = false } else { throw `The 'next' function was called twice; for library performance, optics calling 'next' more than once must be created with 'traversal' in place of 'optic'` }
+                return value[__exec__](target, itr);
             }
+            return operation(target, next);
         }
-    }
+    });
 }
 
 // lens is a functional pseudo-constructor for making custom optics.
@@ -79,15 +85,13 @@ export function compose(...optics){
     let itr = lst[Symbol.iterator]();
     itr.next();
 
-    return {
-        [__exec__](o, i){
-            // if(o === undefined){ return undefined; }
-            return lst[0][__exec__](o, (function*(){
-                yield* itr;
-                if(i !== undefined){ yield* i; }
-            })());
-        }
-    }
+    return new Optic((target, i) => {
+        return lst[0][__exec__](target, (function*(){
+            yield* itr;
+            if(i !== undefined){ yield* i; }
+        })());
+    });
+    
 }
 
 export function chain(...optics){
@@ -154,33 +158,25 @@ export let where = predicate => {
     }, false);
 }
 
-
-
-
-
-
 export function traversal(operation){
-    return {
-        [__exec__](target, itr){
-            // if(target === undefined){ return undefined; }
-            let { done, value } = itr ? itr.next() : { done: true };
-            if(done){
-                return operation(target, id => id);
-            } else {
-                let lst = [];
-                while(!done){
-                    lst.push(value); 
-                    ({ done, value } = itr.next());
-                }
-                let next = target => {
-                    let itr = lst[Symbol.iterator]();
-                    let { done, value } = itr.next();
-                    return done ? target : value[__exec__](target, itr);
-                }
-                return operation(target, next);
+    return new Optic((target, itr) => {
+        let { done, value } = itr ? itr.next() : { done: true };
+        if(done){
+            return operation(target, id => id);
+        } else {
+            let lst = [];
+            while(!done){
+                lst.push(value); 
+                ({ done, value } = itr.next());
             }
+            let next = target => {
+                let itr = lst[Symbol.iterator]();
+                let { done, value } = itr.next();
+                return done ? target : value[__exec__](target, itr);
+            }
+            return operation(target, next);
         }
-    }
+    });
 }
 
 // 
@@ -205,7 +201,6 @@ export let each = () => {
             }, target);
         } else {
             return target;
-            // throw new Error("The 'each' optic expects targets of the type Object, Array, or undefined");
         }
     });
 }
