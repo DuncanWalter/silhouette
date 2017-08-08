@@ -13,8 +13,13 @@ before_script:
 script:
   - npm test
   - npm run prod
-after_success:
-  - npm version minor 
+deploy:
+  provider: npm
+  email: dwalter@barlingarts.com
+  api_key: NPM_TOKEN
+  skip_cleanup: true
+  on:
+    tags: true
 branches:
   only:
     - master
