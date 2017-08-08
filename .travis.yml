@@ -3,7 +3,9 @@ cache:
   directories:
     - node_modules
 notifications:
-  email: false
+  email: 
+    recipients:
+      - dwalter@barlingarts.com
 node_js:
   - '7'
 before_script:
