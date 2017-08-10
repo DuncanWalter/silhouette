@@ -1,5 +1,4 @@
 
-// TODO make __exec__ truly private 
 const __exec__ = Symbol('exec');
 
 class Optic {
@@ -42,7 +41,9 @@ export function optic(operation){
                 if(safe){ safe = false } else { throw `The 'next' function was called twice; for library performance, optics calling 'next' more than once must be created with 'traversal' in place of 'optic'` }
                 return value[__exec__](target, itr);
             }
-            return operation(target, next);
+            let ret = operation(target, next);
+            if(itr.return){ itr.return(); }
+            return ret;
         }
     });
 }
@@ -86,10 +87,12 @@ export function compose(...optics){
     itr.next();
 
     return new Optic((target, i) => {
-        return lst[0][__exec__](target, (function*(){
+        let ret = lst[0][__exec__](target, (function*(){
             yield* itr;
             if(i !== undefined){ yield* i; }
         })());
+        if(itr.return){ itr.return(); }
+        return ret;
     });
     
 }
@@ -153,7 +156,7 @@ export let remove = prop => lens(obj => obj, (obj, ret) => {
 // where accepts a predicate function which returns a boolean flag. If the
 // predicate run over an input returns false, no subsequent composed lenses will be used.
 export let where = predicate => {
-    return trusted((target, next) => {
+    return optic((target, next) => {
         return predicate(target) ? next(target) : target;
     }, false);
 }
@@ -172,7 +175,9 @@ export function traversal(operation){
             let next = target => {
                 let itr = lst[Symbol.iterator]();
                 let { done, value } = itr.next();
-                return done ? target : value[__exec__](target, itr);
+                let ret = done ? target : value[__exec__](target, itr);
+                if(itr.return){ itr.return(); }
+                return ret;
             }
             return operation(target, next);
         }

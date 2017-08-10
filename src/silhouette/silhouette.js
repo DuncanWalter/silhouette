@@ -3,7 +3,7 @@ import { createStore } from 'redux'
 
 // TODO if(module.hot){module.hot.accept();} TODO store state to a global for recovery
 
-// 
+// non colliding action types
 const __INJECT__ = Symbol('__INJECT__');
 const __REMOVE__ = Symbol('__REMOVE__');
 const __DELEGATE__ = Symbol('__DELEGATE__');
@@ -14,23 +14,25 @@ const __reducers__ = Symbol('reducers');
 const __push__ = Symbol('push');
 const __store__ = Symbol('store');
 const __root__ = Symbol('root');
-const __spawn__ = Symbol('spawn');
+const __create__ = Symbol('spawn');
 
 function defineSilhouette(){
 
     class Silhouette {
 
-        [__spawn__](name){
-            this[name] = new Silhouette();
-            this[name][__path__] = this[__path__].concat([name]);
-            this[name][__reducers__] = [];
+        [__create__](parent, member){
+            let sil = new Silhouette();
+            sil[__path__] = parent ? [...parent[__path__], member] : [];
+            sil[__reducers__] = [];
+            if( parent !== undefined ){ parent[member] = sil; }
+            return sil;
         }
 
         inject(val, ...path){
             this[__store__].dispatch({ 
                 type: __INJECT__, 
                 val: val,
-                path: this[__path__].concat(path), 
+                path: [ ...this[__path__], ...path ], 
                 sil: this[__root__],
             });
         }
@@ -38,7 +40,7 @@ function defineSilhouette(){
         remove(...path){
             this[__store__].dispatch({ 
                 type: __REMOVE__,
-                path: this[__path__].concat(path),
+                path: [ ...this[__path__], ...path ],
                 sil: this[__root__],
             });
         }
@@ -90,7 +92,7 @@ function contort({ state, sil, action }){
 
         Object.keys(transitional).forEach(key => {
             if(!sil.hasOwnProperty(key)){
-                sil[__spawn__](key);
+                sil[__create__](sil, key);
             }
         });
     }
@@ -113,10 +115,10 @@ function contort({ state, sil, action }){
 function traverse(member){
     return optic(({ state, sil, action }, next) => {
         return view(compose(member, (fragment) => {
-            if(!sil[member]){ sil[__spawn__](member); }
+            if(!sil[member]){ sil[__create__](sil, member); }
             let ret = next({ state: fragment || {}, sil: sil[member], action });
             if(ret !== state){
-                sil[__push__]({ done: false, value: ret });
+                sil[member][__push__]({ done: false, value: ret });
             }
             return ret;
         }), state)
@@ -127,8 +129,8 @@ function repsert(val){
     return optic(({state, sil}) => {
         Object.keys(val).forEach(key => {
             if(!sil || !sil.hasOwnProperty(key)){
-                sil[__spawn__](key);
-                view(repsert(val[key]), { state: val[key], sil: sil[key] });
+                sil[__create__](sil, key);
+                view(repsert(val[key]), { state: undefined, sil: sil[key] });
             }
         });
         if(val !== state){
@@ -192,22 +194,17 @@ function globalReducer(state = {}, action){
 export function create(...plugins){
 
     let namespace = { 
-        Silhouette: defineSilhouette(), 
-        /*/ __path__: __path__, /*/  
-        /*/ __push__: __push__, /*/
-        /*/ __store__: __store__, /*/ 
-        /*/ __reducers__: __reducers__, /*/ 
+        Silhouette: defineSilhouette(),
         /*/ beforeDestroy, /*/
         /*/ afterCreate, /*/
         createStore: createStore,
         createSil: (store) => {
-            let sil = new namespace.Silhouette();
-            sil[__path__] = [];
-            sil[__reducers__] = [];
+            let sil = namespace.Silhouette.prototype[__create__]();
             namespace.Silhouette.prototype[__store__] = store;
             namespace.Silhouette.prototype[__root__] = sil;
             return sil;
-        }
+        },
+        symbols: { __push__, __create__, __reducers__ },
     }
 
     plugins.forEach(p => p(namespace));
