@@ -1,10 +1,10 @@
-import { compose, each, where, inject, remove, optic, chain, view } from '~/src/optics/optics.js'
+import { compose, each, inject, remove, optic, chain, view } from '~/src/optics/optics.js'
 import { createStore } from 'redux'
 
 // TODO if(module.hot){module.hot.accept();} TODO store state to a global for recovery
 
 // non colliding action types
-const __INJECT__ = Symbol('__INJECT__');
+const __DEFINE__ = Symbol('__DEFINE__');
 const __REMOVE__ = Symbol('__REMOVE__');
 const __DELEGATE__ = Symbol('__DELEGATE__');
 
@@ -23,14 +23,14 @@ function defineSilhouette(){
         [__create__](parent, member){
             let sil = new Silhouette();
             sil[__path__] = parent ? [...parent[__path__], member] : [];
-            sil[__reducers__] = [];
+            sil[__reducers__] = {};
             if( parent !== undefined ){ parent[member] = sil; }
             return sil;
         }
 
-        inject(val, ...path){
+        define(val, ...path){
             this[__store__].dispatch({ 
-                type: __INJECT__, 
+                type: __DEFINE__, 
                 val: val,
                 path: [ ...this[__path__], ...path ], 
                 sil: this[__root__],
@@ -45,17 +45,23 @@ function defineSilhouette(){
             });
         }
 
-        dispatch(type, payload, globally = false){
+        dispatch(type, payload, locally = false){
             this[__store__].dispatch({ 
                 type: __DELEGATE__,
-                path: globally ? [] : this[__path__],
+                path: locally ? this[__path__] : [],
                 payload: Object.assign({ type }, payload),
                 sil: this[__root__],
             });
         }
 
-        extend(reducer){
-            this[__reducers__].push(reducer);
+        extend(type, reducer){
+            if(type instanceof Object){ 
+                // TODO snag all properties and continue
+            }
+            if(!this[__reducers__][type]){
+                this[__reducers__][type] = [];
+            }
+            this[__reducers__][type].push(reducer);
         }
 
         [__push__]({ value, done }){ /*/ OVERWRITE WITH PLUGINS /*/ }
@@ -73,12 +79,19 @@ function defineSilhouette(){
 // motivation for the creation of the entire optics module.
 function contort({ state, sil, action }){
 
-    let transitional = sil[__reducers__].reduce((a, r) => {
-        return r(a, action);
-    }, state);
+    let transitional = state;
+    if(!sil){
+        throw new Error('WTF!?');
+    }
 
-    if(transitional === undefined || transitional === null){
-        throw new Error('Reducers should not return undefined or null. Perhaps there was a missed return statement?');
+    if(sil[__reducers__][action.type]){
+        transitional = sil[__reducers__][action.type].reduce((a, r) => {
+            return r(a, action);
+        }, state);
+    }
+
+    if(transitional === undefined){
+        throw new Error('Reducer returned undefined; are you missing a return statement?');
     }
 
     if(transitional !== state){
@@ -99,7 +112,14 @@ function contort({ state, sil, action }){
 
     let itr = Object.keys(transitional)[Symbol.iterator]();
 
-    let fun = frag => {return{ state: frag, action: action, sil: sil[itr.next().value] }};
+    let fun = frag => {
+        let member = itr.next().value;
+        return { 
+            state: frag, 
+            action: action, 
+            sil: sil[member] || sil[__create__](sil, member),
+        }
+    };
 
     let final = view(compose(each(), fun, contort), transitional);
 
@@ -160,10 +180,10 @@ function globalReducer(state = {}, action){
     let path, payload, val, sil = action.sil;
     switch(action.type){
 
-        case __INJECT__:
+        case __DEFINE__:
             ({ val, path } = action);
-            let inject = compose(...path.map(traverse), repsert(val));
-            return view(inject, { state, sil });
+            let define = compose(...path.map(traverse), repsert(val));
+            return view(define, { state, sil });
 
         case __REMOVE__:
             ({ path } = action);
@@ -174,13 +194,13 @@ function globalReducer(state = {}, action){
         case __DELEGATE__:
             ({ path, payload } = action);
             let dispatch = compose(...path.map(traverse), contort);
-            return view(dispatch, { state, sil, action });
+            return view(dispatch, { state, sil, action: payload });
 
         case '@@redux/INIT':
             return state;
 
         default:
-            throw new Error('silhouette is meant to abstract all interaction with the data store; do not interact with it directly');
+            throw new Error('Invalid action type dispatched');
             return undefined;
 
     }

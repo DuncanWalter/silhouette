@@ -5,7 +5,7 @@ const sil = create( rxjsPlugin );
 
 tap.test('rxjsPlugin tests', t => {
     t.true(sil);
-    sil.inject({ a: 3, b: { c: 1, d: 4 }});
+    sil.define({ a: 3, b: { c: 1, d: 4 }});
     t.true(sil.a);
     t.true(sil.b.c);
     
@@ -23,16 +23,27 @@ tap.test('rxjsPlugin tests', t => {
     let aa = incra;
     let bb = incrb;
 
-    sil.a.inject(4);
+    sil.a.define(4);
     t.same(a, 4);
     t.true(incra > aa);
     aa = incra;
     t.true(incrb == bb);
 
-    sil.b.inject([10, 20, 30], 'c');
+    sil.b.define([10, 20, 30], 'c');
     t.same(incra, aa);
     t.true(incrb > bb);
     t.deepEqual(b, {c: [10, 20, 30], d: 4});
+
+    sil.b.extend('whatever', state => {
+        state.c.push(1);
+        return state;
+    });
+    sil.b.dispatch('whatever', {});
+
+    t.true(b.c[3]);
+
+    // TODO check on the reducers and contorts
+
     t.end();
     
 });
