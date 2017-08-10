@@ -34,7 +34,7 @@ Using middleware, silhouettes are designed to naturally support reactive program
 
 A root silhouette object is created by a global create method which accepts an optional list of plugins:
 
-``` es6
+``` javascript
 import { create, rxjsPlugin } from 'silhouette-store'
 
 const sil = create( rxjsPlugin );
@@ -44,7 +44,7 @@ console.log(sil); // > S { }
 
 Who likes increment examples? No one? Ok, have another one:
 
-``` es6
+``` javascript
 let step = 1;
 
 // easiest way to mold initial state
