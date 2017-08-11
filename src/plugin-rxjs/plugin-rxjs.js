@@ -32,7 +32,7 @@ export function rxjsPlugin({ Silhouette, symbols }){
             this[__stream__] = new rxjs.BehaviorSubject(this[__stream__]);
         }
 
-        return this[__stream__];
+        return this[__stream__].asObservable();
     }
 
 }

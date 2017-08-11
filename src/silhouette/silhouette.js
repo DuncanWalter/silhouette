@@ -1,4 +1,4 @@
-import { compose, each, inject, remove, optic, chain, view } from '~/src/optics/optics.js'
+import { compose, each, inject, remove, optic, chain, view, lens } from '~/src/optics/optics.js'
 import { createStore } from 'redux'
 
 // TODO if(module.hot){module.hot.accept();} TODO store state to a global for recovery
@@ -6,7 +6,6 @@ import { createStore } from 'redux'
 // non colliding action types
 const __DEFINE__ = Symbol('__DEFINE__');
 const __REMOVE__ = Symbol('__REMOVE__');
-const __DELEGATE__ = Symbol('__DELEGATE__');
 
 // non-colliding class properties
 const __path__ = Symbol('path');
@@ -14,7 +13,12 @@ const __reducers__ = Symbol('reducers');
 const __push__ = Symbol('push');
 const __store__ = Symbol('store');
 const __root__ = Symbol('root');
-const __create__ = Symbol('spawn');
+const __create__ = Symbol('create');
+
+function diff(pat, trg){
+    if(!(pat instanceof Object || pat instanceof Array)){ return !!trg }
+    return Object.keys(pat).reduce((a, k) => a && trg[k] && diff(pat[k], trg[k]), trg !== undefined);
+}
 
 function defineSilhouette(){
 
@@ -29,39 +33,39 @@ function defineSilhouette(){
         }
 
         define(val, ...path){
-            this[__store__].dispatch({ 
-                type: __DEFINE__, 
-                val: val,
-                path: [ ...this[__path__], ...path ], 
-                sil: this[__root__],
-            });
+            // to keep logs clean and better support redux devtools,
+            // dispatches are filtered here.
+            if(!view(compose(...path.map(k => lens(o => o[k], (o, r) => r)), diff.bind(null, val)), this)){
+                // TODO make it as soft / non intrusive as possible
+                this[__store__].dispatch({ 
+                    type: __DEFINE__, 
+                    val: val,
+                    path: [ ...this[__path__], ...path ],
+                });
+            }
         }
 
+        // Escape Hatch...
         remove(...path){
             this[__store__].dispatch({ 
                 type: __REMOVE__,
                 path: [ ...this[__path__], ...path ],
-                sil: this[__root__],
             });
         }
 
         dispatch(type, payload, locally = false){
-            this[__store__].dispatch({ 
-                type: __DELEGATE__,
+            // TODO cover the tracks!
+            this[__store__].dispatch(Object.assign({ 
+                type,
                 path: locally ? this[__path__] : [],
-                payload: Object.assign({ type }, payload),
-                sil: this[__root__],
-            });
+            }, payload));
         }
 
-        extend(type, reducer){
+        extend(type, reducer, compose = false){
             if(type instanceof Object){ 
                 // TODO snag all properties and continue
             }
-            if(!this[__reducers__][type]){
-                this[__reducers__][type] = [];
-            }
-            this[__reducers__][type].push(reducer);
+            this[__reducers__][type] = reducer;
         }
 
         [__push__]({ value, done }){ /*/ OVERWRITE WITH PLUGINS /*/ }
@@ -80,14 +84,9 @@ function defineSilhouette(){
 function contort({ state, sil, action }){
 
     let transitional = state;
-    if(!sil){
-        throw new Error('WTF!?');
-    }
 
     if(sil[__reducers__][action.type]){
-        transitional = sil[__reducers__][action.type].reduce((a, r) => {
-            return r(a, action);
-        }, state);
+        transitional = sil[__reducers__][action.type](state, action);
     }
 
     if(transitional === undefined){
@@ -160,6 +159,28 @@ function repsert(val){
     });
 }
 
+// TODO replace repsert...
+// function define(val){
+//     return optic(({state, sil}) => {
+//         if(state === val){ return state; }
+//         let _state = state;
+//         if(typeof state !== typeof val){ _state = val; }
+//         Object,keys(val).
+
+
+//         Object.keys(val).forEach(key => {
+//             if(!sil || !sil.hasOwnProperty(key)){
+//                 sil[__create__](sil, key);
+//                 view(define(val[key]), { state: state[key], sil: sil[key] });
+//             }
+//         });
+//         if(val !== state){
+//             sil[__push__]({ done: false, value: val });
+//         }
+//         return val;
+//     });
+// }
+
 function erase(member){
     return optic(({state, sil}) => {
         let _state = state;
@@ -176,33 +197,28 @@ function erase(member){
     });
 }
 
-function globalReducer(state = {}, action){
-    let path, payload, val, sil = action.sil;
+function globalReducer(S, state = {}, action){
+    let path, payload, val, sil = S.prototype[__root__];
     switch(action.type){
 
         case __DEFINE__:
             ({ val, path } = action);
-            let define = compose(...path.map(traverse), repsert(val));
-            return view(define, { state, sil });
+            let _define = compose(...path.map(traverse), repsert(val));
+            return view(_define, { state, sil });
 
         case __REMOVE__:
             ({ path } = action);
             let eraser = erase(path.pop());
             let remove = compose(...path.map(traverse), eraser);
             return view(remove, { state, sil });
-
-        case __DELEGATE__:
-            ({ path, payload } = action);
-            let dispatch = compose(...path.map(traverse), contort);
-            return view(dispatch, { state, sil, action: payload });
-
+            
         case '@@redux/INIT':
             return state;
 
         default:
-            throw new Error('Invalid action type dispatched');
-            return undefined;
-
+            ({ path, payload } = action);
+            let dispatch = compose(...path.map(traverse), contort);
+            return view(dispatch, { state, sil, action });
     }
 
 }
@@ -213,6 +229,8 @@ function globalReducer(state = {}, action){
 
 export function create(...plugins){
 
+    // TODO there's gotta be a way to do multicast plugins
+    // without leaning SO hard on monkey patching...
     let namespace = { 
         Silhouette: defineSilhouette(),
         /*/ beforeDestroy, /*/
@@ -229,6 +247,10 @@ export function create(...plugins){
 
     plugins.forEach(p => p(namespace));
 
-    return namespace.createSil(namespace.createStore(globalReducer));
+    return namespace.createSil(
+        namespace.createStore(
+            globalReducer.bind(this, namespace.Silhouette)
+        )
+    );
 
 }
