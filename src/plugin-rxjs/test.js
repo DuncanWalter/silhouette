@@ -23,8 +23,8 @@ tap.test('rxjsPlugin tests', t => {
     let aa = incra;
     let bb = incrb;
 
-    sil.a.define(4);
-    t.same(a, 4);
+    sil.a.define({e:4});
+    t.deepEqual(a, {e:4});
     t.true(incra > aa);
     aa = incra;
     t.true(incrb == bb);
