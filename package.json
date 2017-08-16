@@ -33,7 +33,13 @@
   },
   "dependencies": {
     "redux": "^3.7.2",
-    "rxjs": "^5.4.2"
+    "redux-devtools-extension": "^2.13.2",
+    "redux-logger": "^3.0.6",
+    "rxjs": "^5.4.2",
+    "silhouette-core": "^1.2.3",
+    "silhouette-plugin-redux": "^1.0.1",
+    "silhouette-plugin-rxjs": "^1.0.1",
+    "vitrarius": "^1.0.2"
   },
   "repository": "https://github.com/DuncanWalter/silhouette.git",
   "publishConfig": {
