@@ -1,5 +1,5 @@
 {
-  "name": "silhouette-store",
+  "name": "silhouette",
   "version": "2.0.1",
   "description": "Atomic state management inspired by redux, observables, and optics.",
   "main": "dist/index.bundle.js",
