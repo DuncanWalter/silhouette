@@ -17,12 +17,6 @@ let config = extend({
         library: package.name,
         libraryTarget: 'umd',
     },
-    externals: Object.keys(package.dependencies).reduce((a, d) => {
-        // adds all runtime dependencies to the exclude list for testing
-        // in a node environment for accurate code coverage reporting.
-        a[d] = d;
-        return a;
-    }, { tap: 'tap' }),
     devtool: 'cheap-eval-source-map',
 });
 

@@ -22,11 +22,11 @@ tap.test('silhouette tests', t => {
         incra++;
         return s;
     });
-    sil.b.dispatch('any', { }, true);
+    sil.b.dispatch('any', { });
     t.equal(incrb, 1);
-    t.equal(incra, 0);
+    t.equal(incra, 1);
     sil.b.dispatch('any', { });
     t.equal(incrb, 2);
-    t.equal(incra, 1);
+    t.equal(incra, 2);
     t.end();
 });

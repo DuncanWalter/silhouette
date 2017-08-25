@@ -9,4 +9,4 @@ let reduxConfig = {
     middleware: [ createLogger() ],
     compose: composeWithDevTools,
 }
-export let create = (...plugins) => __create__(rxjsPlugin(), reduxPlugin(reduxConfig), ...plugins);
+export let create = (...plugins) => __create__(...plugins, rxjsPlugin(), reduxPlugin(reduxConfig));
