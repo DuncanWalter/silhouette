@@ -1,6 +1,6 @@
 import tap from 'tap'
 import { create } from './index'
-const sil = create();
+let sil = create();
 
 tap.test('silhouette tests', t => {
     t.true(sil);
@@ -28,5 +28,32 @@ tap.test('silhouette tests', t => {
     sil.b.dispatch('any', { });
     t.equal(incrb, 2);
     t.equal(incra, 2);
+
+
+    sil = create();
+    sil.define({view: {}});
+
+    sil.view.define({ a: [{v: 1}]});
+
+    let c = 0;
+    sil.view.a[0].v.asObservable().subscribe(v => c = v);
+    t.true(c === 1);
+    sil.view.a[0].asObservable().subscribe(v => c = v);
+    t.true(c instanceof Object);
+    sil.view.a.asObservable().subscribe(v => c = v);
+    t.true(c instanceof Array);
+    sil.view.asObservable().subscribe(v => c = v);
+    t.true(c instanceof Object);
+    sil.asObservable().subscribe(v => c = v);
+    t.true(c instanceof Object);
+
+
+
+
+
+
+
+
+
     t.end();
 });

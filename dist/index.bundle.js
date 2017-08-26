@@ -63,8 +63,8 @@
             middleware: [ (0, _reduxLogger.createLogger)() ],
             compose: _reduxDevtoolsExtension.composeWithDevTools
         };
-        let create = exports.create = ((...plugins) => (0, _silhouetteCore.create)((0, _silhouettePluginRxjs2.default)(), (0, 
-        _silhouettePluginRedux2.default)(reduxConfig), ...plugins));
+        let create = exports.create = ((...plugins) => (0, _silhouetteCore.create)(...plugins, (0, 
+        _silhouettePluginRxjs2.default)(), (0, _silhouettePluginRedux2.default)(reduxConfig)));
     }, function(module, exports) {
         module.exports = __WEBPACK_EXTERNAL_MODULE_1__;
     }, function(module, exports) {
