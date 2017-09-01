@@ -8,10 +8,18 @@
 
 This package is a quick-start for using Silhouette; it comes equipped with rxjs, redux, and some redux enhancers out of the box. Because of its 'batteries included' package, it is less configurable and significantly larger in bundle size than silhouette-core. [Silhouette-core](https://www.npmjs.com/package/silhouette-core) is the recommended way to use silhouette in production.
 
+For now, a slap-dash demo project for silhouette can be found [here](https://github.com/DuncanWalter/alonzo-client-template).
+
 ### **Usage**
 -----------------------
 
-Silhouette exports only a create method, which accepts no arguments. 
+Installation is as expected using npm:
+
+```
+> npm install --save silhouette
+```
+
+Silhouette exports only a create method, which accepts an optional list of plugins for arguments. 
 
 ``` javascript
 import { create } from 'silhouette'
