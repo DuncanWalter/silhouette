@@ -1,59 +1,67 @@
 import tap from 'tap'
 import { create } from './index'
-let sil = create();
+import { create as __create__ } from 'silhouette-core'
+import rxjsPlugin from 'silhouette-plugin-rxjs'
+
 
 tap.test('silhouette tests', t => {
-    t.true(sil);
+    let sil = create();
+    t.true(sil); // 1
     sil.define({ a: 3, b: { c: 1, d: 4 }});
-    t.true(sil.a);
-    t.true(sil.b.c);
+    t.true(sil.select('a')); // 2
+    t.true(sil.select('b', 'c')); // 3
     sil.remove('b', 'c');
-    t.same(sil.b.c, undefined);
-    t.true(sil.b.d);
-    sil.b.define([10, 20, 30], 'c');
-    t.true(sil.b.c[0]);
+    t.same(sil.select('b', 'c').state, undefined); // 4
+    t.true(sil.select('b', 'd')); // 5
+    sil.select('b').define([10, 20, 30], 'c');
+    t.true(sil.select('b', 'c', 0)); // 6
     let incra = 0;
     let incrb = 0;
-    sil.b.extend('any', (s, a) => {
+    sil.select('b').extend('any', (s, a) => {
         incrb++;
         return s;
     });
-    sil.a.extend('any', (s, a) => {
+    sil.select('a').extend('any', (s, a) => {
         incra++;
         return s;
     });
-    sil.b.dispatch('any', { });
-    t.equal(incrb, 1);
-    t.equal(incra, 1);
-    sil.b.dispatch('any', { });
-    t.equal(incrb, 2);
-    t.equal(incra, 2);
+    sil.select('b').dispatch('any', { });
+    t.equal(incrb, 1); // 7
+    t.equal(incra, 1); // 8
+    sil.select('b').dispatch('any', { });
+    t.equal(incrb, 2); // 9
+    t.equal(incra, 2); // 10 
+
+    t.end();
+});
 
 
-    sil = create();
+
+
+
+tap.test('silhouette tests', t => {
+
+    let sil = create();
+
     sil.define({view: {}});
 
-    sil.view.define({ a: [{v: 1}]});
+    sil.select('view').define({ a: [{v: 1}]});
 
     let c = 0;
-    sil.view.a[0].v.asObservable().subscribe(v => c = v);
-    t.true(c === 1);
-    sil.view.a[0].asObservable().subscribe(v => c = v);
+
+    // console.log('STATE', sil.select('view', 'a', 0, 'v').state);
+    sil.select('view', 'a', 0, 'v').asObservable().subscribe(v => c = v);
+    t.equal(c, 1);
+    // console.log('STATE', sil.select('view', 'a', 0).state);
+    sil.select('view', 'a', 0).asObservable().subscribe(v => c = v);
     t.true(c instanceof Object);
-    sil.view.a.asObservable().subscribe(v => c = v);
+    sil.select('view', 'a').asObservable().subscribe(v => c = v);
     t.true(c instanceof Array);
-    sil.view.asObservable().subscribe(v => c = v);
+    sil.select('view').asObservable().subscribe(v => c = v);
     t.true(c instanceof Object);
     sil.asObservable().subscribe(v => c = v);
     t.true(c instanceof Object);
 
-
-
-
-
-
-
-
-
     t.end();
+
 });

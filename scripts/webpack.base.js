@@ -23,7 +23,6 @@ const base = {
                             ],
                             node: 'current',
                         }
-                        
                     }]],
                     cacheDirectory: true,
                 }
